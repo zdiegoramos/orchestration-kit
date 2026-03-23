@@ -159,9 +159,10 @@ Scaffolding that reduces manual labor:
 1. `.github/ISSUE_TEMPLATE/ai-afk-task.yml`
 2. `.claude/settings.json`
 3. `.claude/hooks/block-destructive-git.sh`
-4. `plans/prd.md`
-5. `plans/tasks.md`
-6. `progress.txt`
+4. `.gitignore`
+5. `plans/prd.md`
+6. `plans/tasks.md`
+7. `progress.txt`
 
 Mandatory safety module:
 

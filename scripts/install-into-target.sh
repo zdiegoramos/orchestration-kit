@@ -106,6 +106,7 @@ done
 copy_file "$KIT_ROOT/templates/.claude/settings.json" "$TARGET_REPO/.claude/settings.json"
 copy_file "$KIT_ROOT/templates/.claude/hooks/block-destructive-git.sh" "$TARGET_REPO/.claude/hooks/block-destructive-git.sh"
 copy_file "$KIT_ROOT/templates/.github/ISSUE_TEMPLATE/ai-afk-task.yml" "$TARGET_REPO/.github/ISSUE_TEMPLATE/ai-afk-task.yml"
+copy_file "$KIT_ROOT/templates/.gitignore" "$TARGET_REPO/.gitignore"
 copy_file "$KIT_ROOT/templates/plans/prd.md" "$TARGET_REPO/plans/prd.md"
 copy_file "$KIT_ROOT/templates/plans/tasks.md" "$TARGET_REPO/plans/tasks.md"
 copy_file "$KIT_ROOT/templates/progress.txt" "$TARGET_REPO/progress.txt"
