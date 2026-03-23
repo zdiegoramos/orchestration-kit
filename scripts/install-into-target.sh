@@ -47,6 +47,25 @@ copy_file() {
   echo "copy  $dest"
 }
 
+copy_dir_contents() {
+  local src_dir="$1"
+  local dest_dir="$2"
+
+  if [ ! -d "$src_dir" ]; then
+    echo "skip  $src_dir (missing source directory)"
+    return
+  fi
+
+  if [ -d "$dest_dir" ] && [ -n "$(ls -A "$dest_dir" 2>/dev/null)" ] && [ "$FORCE" -ne 1 ]; then
+    echo "skip  $dest_dir (exists, use --force to overwrite)"
+    return
+  fi
+
+  mkdir -p "$dest_dir"
+  cp -R "$src_dir"/. "$dest_dir"/
+  echo "copy  $dest_dir/*"
+}
+
 echo "Installing orchestration kit into: $TARGET_REPO"
 
 ensure_env_vars_file() {
@@ -108,6 +127,7 @@ done
 
 copy_file "$KIT_ROOT/templates/.claude/settings.json" "$TARGET_REPO/.claude/settings.json"
 copy_file "$KIT_ROOT/templates/.claude/hooks/block-destructive-git.sh" "$TARGET_REPO/.claude/hooks/block-destructive-git.sh"
+copy_dir_contents "$KIT_ROOT/templates/.claude/skills" "$TARGET_REPO/.claude/skills"
 copy_file "$KIT_ROOT/templates/.gitignore" "$TARGET_REPO/.gitignore"
 copy_file "$KIT_ROOT/templates/plans/prd.md" "$TARGET_REPO/plans/prd.md"
 copy_file "$KIT_ROOT/templates/plans/tasks.md" "$TARGET_REPO/plans/tasks.md"
@@ -124,7 +144,11 @@ echo ""
 echo "Install complete."
 echo "Next steps:"
 echo "  1. cd $TARGET_REPO"
-echo "  2. Add token values in .env (CLAUDE_CODE_OAUTH_TOKEN, GH_READ_TOKEN)"
+echo "  2. Get and set .env secrets:"
+echo "     - CLAUDE_CODE_OAUTH_TOKEN: run 'claude setup-token' (or 'claude login') and copy the generated token"
+echo "     - GH_READ_TOKEN: create a GitHub PAT with minimum repository permissions: Contents (read-only) and Metadata (read-only)"
+echo "       URL: https://github.com/settings/personal-access-tokens"
+echo "     - Paste both values into .env"
 echo "  3. gh auth login"
 echo "  4. bash scripts/setup-github-secrets.sh"
 echo "  5. bash scripts/preflight-check.sh"
