@@ -1,0 +1,49 @@
+name: AI AFK Task
+description: Autonomous task that can be safely dispatched to the orchestration loop
+title: "[AFK] "
+labels: ["afk"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for tasks AI can execute without extra decisions.
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - AFK
+        - HITL
+      default: 0
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: One sentence outcome.
+      placeholder: Ship X behavior so Y user can Z.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: One bullet per testable requirement.
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+    validations:
+      required: true
+  - type: textarea
+    id: blocked_by
+    attributes:
+      label: Blocked by
+      description: Optional dependency issue references.
+      placeholder: |
+        - #123
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Constraints, non-goals, or architecture hints.

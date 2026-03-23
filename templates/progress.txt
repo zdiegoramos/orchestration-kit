@@ -1,0 +1,5 @@
+# Progress Log
+
+Append one entry per iteration.
+
+- YYYY-MM-DD HH:MM: What changed, validation run, next blocker.

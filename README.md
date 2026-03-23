@@ -1,128 +1,205 @@
-# The AI Engineer Process
+# AI Orchestration Kit
 
-A concise, low-intervention process to go from idea to revenue with AI doing almost all implementation work.
+This kit is the reusable process layer for AI-first software delivery.
 
-## Operating Principle
+It is intentionally app-agnostic: you bring product context and architecture decisions, AI executes the implementation work.
 
-- AI does all research, planning, coding, testing, refactoring, docs, and release automation.
-- Human intervenes only for irreversible or external-authority actions (billing, legal, secrets, production approvals).
+## Outcome and pass criteria
 
-## Step 1: Define Revenue Target (Human: 15-20 min)
+After this guide, a developer can:
 
-Provide AI:
-- Target customer
-- Pain solved
-- Pricing model (subscription, usage, one-time)
-- 30-day revenue target
+1. Install orchestration once with near-zero hand wiring.
+2. Dispatch AI work safely and repeatedly.
+3. Review/merge AI PRs with clear traceability.
+4. Understand why each step exists, not just what to run.
 
-If unknown, ask AI to generate 3 business model options and pick 1.
+## Process map
 
-## Step 2: Create PRD and Plan (AI-led)
+```mermaid
+flowchart TD
+	A[Install local dependencies] --> B[Install kit into target repo]
+	B --> C[Create GitHub secrets]
+	C --> D[Run preflight checks]
+	D --> E[Create AFK or HITL issues]
+	E --> F[Dispatch parallel AI workers]
+	E --> G[Run local RALPH loop]
+	F --> H[AI opens PRs]
+	G --> H
+	H --> I[Human reviews and merges]
+	I --> J[Re-dispatch next batch]
+```
 
-AI actions:
-- Run a PRD interview (problem, users, scope, out-of-scope).
-- Convert PRD into vertical slices (end-to-end tracer bullets).
-- Produce a phased plan with acceptance criteria per slice.
+## Installations first
 
-Human actions:
-- Approve PRD and slice order once.
+Do this once per machine.
 
-Exit criteria:
-- A single source PRD exists.
-- A phase plan exists where each phase is independently demoable.
+1. Install GitHub CLI and authenticate.
+2. Install Claude Code CLI.
+3. Install `jq`.
+4. Confirm Docker Desktop only if you plan to use Sandcastle.
 
-## Step 3: Scaffold the Stack (AI-led)
+Quick check:
 
-AI actions:
-- Scaffold Next.js + TypeScript strict mode + Bun.
-- Add shadcn/ui + CVA, Better Auth, oRPC, Effect, drizzle-orm, Neon/Postgres wiring.
-- Configure Biome + Ultracite, test setup, CI gates.
-- Create environment-variable templates and startup scripts.
+```bash
+gh --version && claude --version && jq --version
+```
 
-Human actions (only if needed):
-- Provide external account IDs and API keys (GitHub, Neon, auth providers, payment providers).
+Reasoning: these tools are the minimum runtime dependencies for all orchestration modes.
 
-Exit criteria:
-- Fresh clone can install, typecheck, lint, test, and boot locally.
+## Step-by-step onboarding
 
-## Step 4: Build One Slice at a Time (AI-led TDD loop)
+### 1) Install the kit into a target repository
 
-For each slice:
-1. AI writes one failing behavior test (RED).
-2. AI writes minimal code to pass (GREEN).
-3. AI refactors safely (REFACTOR).
-4. AI updates docs/changelog and opens PR.
+From this repository root:
 
-Rules:
-- No horizontal implementation batches.
-- Tests assert public behavior and contracts, not internals.
-- Keep modules deep: small interfaces, rich internals.
+```bash
+bash orchestration-kit/scripts/install-into-target.sh /absolute/path/to/target-repo
+```
 
-Human actions:
-- Review/approve only high-risk changes (auth, payments, data deletion, privilege boundaries).
+Optional sandbox assets:
 
-## Step 5: Enforce Guardrails (AI-led)
+```bash
+bash orchestration-kit/scripts/install-into-target.sh /absolute/path/to/target-repo --with-sandcastle
+```
 
-AI actions:
-- Enforce CI policy: typecheck, lint, unit/contract/integration/e2e tests.
-- Block risky auth diffs without explicit reviewer approval.
-- Run eval checks on agent-generated changes before merge.
-- Keep dangerous git operations blocked by hooks.
+Reasoning: this single command copies workflows, scripts, issue templates, planning files, and Claude starter config so you avoid manual file-by-file setup.
 
-Human actions:
-- Final approval for policy-blocked merges.
+### 2) Configure GitHub secrets in the target repository
 
-## Step 6: Production Release (AI-led with human key handoff)
+```bash
+cd /absolute/path/to/target-repo
+bash scripts/setup-github-secrets.sh
+```
 
-AI actions:
-- Prepare migrations, release notes, rollback steps, and deploy commands.
-- Run pre-release verification and smoke tests.
-- Execute deployment workflow.
+Required secrets:
 
-Human actions:
-- Inject production secrets (or approve secret manager access).
-- Approve first production deploy.
+1. `CLAUDE_CODE_OAUTH_TOKEN`
+2. `GH_READ_TOKEN`
 
-Exit criteria:
-- App deployed.
-- Rollback path tested.
-- Basic SLO monitoring active.
+Reasoning: workers run on GitHub Actions and need auth to Claude + issue context.
 
-## Step 7: Revenue Instrumentation (AI-led)
+### 3) Run preflight checks
 
-AI actions:
-- Add event tracking for activation, conversion, churn signals.
-- Build dashboard for: trial starts, paid conversions, MRR, churn, CAC proxy.
-- Create weekly experiment loop (pricing, onboarding, retention).
+```bash
+bash scripts/preflight-check.sh
+```
 
-Human actions:
-- Approve pricing and customer-facing messaging.
+Reasoning: fail fast on missing dependencies, workflow file, auth, or secrets before dispatching work.
 
-## Step 8: Weekly Autonomous Operating Cadence
+### 4) Feed issues in the correct contract
 
-AI runs this cadence every week:
-1. Analyze funnel drop-offs and support feedback.
-2. Propose top 3 revenue-impact changes.
-3. Implement highest-impact slice with tests and guardrails.
-4. Ship, measure for 3-7 days, and report deltas.
+Use `.github/ISSUE_TEMPLATE/ai-afk-task.yml` in the target repo.
 
-Human decides only:
-- Which of top 3 to prioritize.
-- Any legal/compliance-sensitive change.
+Required structure:
 
-## Human-Only Action Checklist
+1. `Type`: AFK or HITL
+2. `Goal`
+3. `Acceptance Criteria`
+4. Optional `Blocked by`
+5. `Notes`
 
-Only do these yourself:
-- Create/verify billing accounts and payment rails.
-- Provide or approve access to secrets and production credentials.
-- Approve legal/compliance text (ToS, Privacy, regulated flows).
-- Approve high-risk production changes (auth, payments, destructive migrations).
+Reasoning: deterministic issue shape enables reliable orchestration and dependency handling.
 
-Everything else is delegated to AI.
+### 5) Run orchestration
 
-## Definition of Done
+Parallel GitHub Actions mode:
 
-The process is working when:
-- AI can take a new slice from brief -> PR -> merged -> deployed with no manual code edits.
-- Human involvement is limited to approvals, keys, and business decisions.
-- Revenue metrics are automatically tracked and reviewed every week.
+```bash
+bash scripts/dispatch.sh
+gh run list --workflow=ai-agent-work.yml
+```
+
+Planning-driven local loop mode:
+
+```bash
+bash scripts/ralph-loop.sh 10
+```
+
+Single local iteration:
+
+```bash
+bash scripts/ralph-once.sh
+```
+
+Reasoning: dispatch mode maximizes throughput across independent issues; RALPH mode maximizes focused execution from planning artifacts.
+
+### 6) Review and merge AI output
+
+1. Review PRs opened from `ai/*` branches.
+2. Merge safe PRs.
+3. Re-run dispatch after merges to unlock dependencies.
+
+Reasoning: human effort stays focused on orchestration and architectural quality gates.
+
+## What gets installed
+
+Core runtime files:
+
+1. `.github/workflows/ai-agent-work.yml`
+2. `scripts/dispatch.sh`
+3. `scripts/dispatch-prompt.md`
+4. `scripts/worker-run.sh`
+5. `scripts/worker-prompt.md`
+6. `scripts/setup-github-secrets.sh`
+7. `scripts/preflight-check.sh`
+8. `scripts/ralph-once.sh`
+9. `scripts/ralph-loop.sh`
+10. `scripts/ralph-prompt.md`
+
+Scaffolding that reduces manual labor:
+
+1. `.github/ISSUE_TEMPLATE/ai-afk-task.yml`
+2. `.claude/settings.json`
+3. `.claude/hooks/block-destructive-git.sh`
+4. `plans/prd.md`
+5. `plans/tasks.md`
+6. `progress.txt`
+
+Optional module:
+
+1. `sandcastle/*`
+2. `scripts/sandbox-setup.sh`
+3. `scripts/sandbox-once.sh`
+4. `scripts/sandbox-loop.sh`
+5. `scripts/sandbox-cleanup.sh`
+
+## Claude starter configuration
+
+The starter `.claude/settings.json` installs a pre-tool hook that blocks destructive git commands (`reset --hard`, `checkout --`, `clean -fdx`) from agent shell calls.
+
+Reasoning: this preserves safety while keeping autonomous edit velocity high.
+
+## Dispatcher and loop configuration
+
+Dispatcher overrides:
+
+1. `WORKFLOW_FILE` (default: `ai-agent-work.yml`)
+2. `TARGET_BRANCH` (default: `main`)
+3. `BRANCH_PREFIX` (default: `ai`)
+4. `ORCHESTRATOR_MODEL` (default: `sonnet`)
+
+RALPH overrides:
+
+1. `RALPH_CONTEXT_FILES` (default: `@plans/prd.md @progress.txt`)
+2. `RALPH_MODEL` (optional)
+3. `RALPH_NOTIFY_CMD` (optional)
+
+Example:
+
+```bash
+RALPH_CONTEXT_FILES='@plans/prd.md @plans/tasks.md @progress.txt @docs/ai-guidelines.md @.claude/skills/my-skill/SKILL.md' bash scripts/ralph-loop.sh 10
+```
+
+## Migration note for this repository
+
+This repository still has legacy root workflow/scripts (`claude-work.yml` naming). The orchestration kit standardizes on:
+
+1. Workflow: `ai-agent-work.yml`
+2. Worker commits: `AI:` prefix
+3. Configurable target branch and branch prefix
+
+Use the kit naming as the canonical process for new repositories.
+
+## Deep dive
+
+See `ai-guide.md` for architecture-level explanation and operating model.
