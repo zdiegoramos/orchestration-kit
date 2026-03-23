@@ -36,12 +36,12 @@ Do this once per machine.
 1. Install GitHub CLI and authenticate.
 2. Install Claude Code CLI.
 3. Install `jq`.
-4. Confirm Docker Desktop only if you plan to use Sandcastle.
+4. Confirm Docker Desktop is installed and running.
 
 Quick check:
 
 ```bash
-gh --version && claude --version && jq --version
+gh --version && claude --version && jq --version && docker --version
 ```
 
 Reasoning: these tools are the minimum runtime dependencies for all orchestration modes.
@@ -54,12 +54,6 @@ From this repository root:
 
 ```bash
 bash orchestration-kit/scripts/install-into-target.sh /absolute/path/to/target-repo
-```
-
-Optional sandbox assets:
-
-```bash
-bash orchestration-kit/scripts/install-into-target.sh /absolute/path/to/target-repo --with-sandcastle
 ```
 
 Reasoning: this single command copies workflows, scripts, issue templates, planning files, and Claude starter config so you avoid manual file-by-file setup.
@@ -155,7 +149,7 @@ Scaffolding that reduces manual labor:
 5. `plans/tasks.md`
 6. `progress.txt`
 
-Optional module:
+Mandatory safety module:
 
 1. `sandcastle/*`
 2. `scripts/sandbox-setup.sh`

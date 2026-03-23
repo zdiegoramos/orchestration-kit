@@ -3,21 +3,19 @@ set -eo pipefail
 
 # Installs orchestration kit files into another repository.
 # Usage:
-#   bash orchestration-kit/scripts/install-into-target.sh /path/to/target [--with-sandcastle] [--force]
+#   bash orchestration-kit/scripts/install-into-target.sh /path/to/target [--force]
 
 if [ -z "${1:-}" ]; then
-  echo "Usage: $0 /path/to/target [--with-sandcastle] [--force]"
+  echo "Usage: $0 /path/to/target [--force]"
   exit 1
 fi
 
 TARGET_REPO="$1"
 shift || true
 
-WITH_SANDCASTLE=0
 FORCE=0
 for arg in "$@"; do
   case "$arg" in
-    --with-sandcastle) WITH_SANDCASTLE=1 ;;
     --force) FORCE=1 ;;
     *)
       echo "Unknown option: $arg"
@@ -69,11 +67,9 @@ copy_file "$KIT_ROOT/templates/plans/prd.md" "$TARGET_REPO/plans/prd.md"
 copy_file "$KIT_ROOT/templates/plans/tasks.md" "$TARGET_REPO/plans/tasks.md"
 copy_file "$KIT_ROOT/templates/progress.txt" "$TARGET_REPO/progress.txt"
 
-if [ "$WITH_SANDCASTLE" -eq 1 ]; then
-  mkdir -p "$TARGET_REPO/sandcastle"
-  cp -R "$KIT_ROOT/sandcastle/." "$TARGET_REPO/sandcastle/"
-  echo "copy  $TARGET_REPO/sandcastle/*"
-fi
+mkdir -p "$TARGET_REPO/sandcastle"
+cp -R "$KIT_ROOT/sandcastle/." "$TARGET_REPO/sandcastle/"
+echo "copy  $TARGET_REPO/sandcastle/*"
 
 chmod +x "$TARGET_REPO/scripts"/*.sh || true
 chmod +x "$TARGET_REPO/.claude/hooks"/*.sh || true

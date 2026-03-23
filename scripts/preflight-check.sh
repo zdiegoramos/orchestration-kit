@@ -17,6 +17,7 @@ require_cmd gh
 require_cmd jq
 require_cmd claude
 require_cmd git
+require_cmd docker
 
 if ! gh auth status >/dev/null 2>&1; then
   echo "GitHub CLI is not authenticated. Run: gh auth login"
@@ -33,6 +34,26 @@ echo "Repo: $REPO"
 
 if [ ! -f ".github/workflows/$WORKFLOW_FILE" ]; then
   echo "Missing workflow: .github/workflows/$WORKFLOW_FILE"
+  exit 1
+fi
+
+MISSING_SANDBOX=0
+for path in \
+  "sandcastle/Dockerfile" \
+  "sandcastle/config.json" \
+  "sandcastle/prompt.md" \
+  "scripts/sandbox-setup.sh" \
+  "scripts/sandbox-once.sh" \
+  "scripts/sandbox-loop.sh" \
+  "scripts/sandbox-cleanup.sh"; do
+  if [ ! -f "$path" ]; then
+    echo "Missing mandatory sandcastle file: $path"
+    MISSING_SANDBOX=1
+  fi
+done
+
+if [ "$MISSING_SANDBOX" -eq 1 ]; then
+  echo "Re-install the kit to restore mandatory sandcastle assets."
   exit 1
 fi
 
