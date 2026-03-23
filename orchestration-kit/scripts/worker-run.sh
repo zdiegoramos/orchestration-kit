@@ -1,0 +1,78 @@
+#!/bin/bash
+set -eo pipefail
+
+# Description:
+#   Runs one worker task: creates a branch, gathers issue context,
+#   executes Claude, and writes PR metadata for the workflow.
+
+# Usage: worker-run.sh <branch_name> <issue_numbers_json> <task_prompt>
+#
+# Environment variables required:
+#   CLAUDE_CODE_OAUTH_TOKEN - Claude Code auth token
+#   GH_TOKEN                - GitHub token for reading issues
+
+BRANCH_NAME="$1"
+ISSUE_NUMBERS="$2"
+TASK_PROMPT="$3"
+
+if [ -z "$BRANCH_NAME" ] || [ -z "$ISSUE_NUMBERS" ] || [ -z "$TASK_PROMPT" ]; then
+  echo "Usage: $0 <branch_name> <issue_numbers_json> <task_prompt>"
+  exit 1
+fi
+
+# Create work branch from checked out base branch.
+git checkout -b "$BRANCH_NAME"
+
+ISSUE_CONTEXT=""
+for num in $(echo "$ISSUE_NUMBERS" | jq -r '.[]'); do
+  ISSUE_JSON=$(gh issue view "$num" --json number,title,body,comments)
+  ISSUE_CONTEXT="${ISSUE_CONTEXT}${ISSUE_JSON}"$'\n\n'
+done
+
+# Keep limited historical context from prior AI commits.
+AI_COMMITS=$(git log --grep="^AI:" -n 10 --format="%H%n%ad%n%B---" --date=short 2>/dev/null || echo "No AI commits found")
+
+WORKER_PROMPT=$(cat "$(dirname "${BASH_SOURCE[0]}")/worker-prompt.md")
+
+FULL_PROMPT="## Your Task
+
+${TASK_PROMPT}
+
+## Issue Context
+
+${ISSUE_CONTEXT}
+
+## Previous AI Commits
+
+${AI_COMMITS}
+
+${WORKER_PROMPT}"
+
+stream_text='select(.type == "assistant").message.content[]? | select(.type == "text").text // empty | gsub("\\n"; "\\r\\n") | . + "\\r\\n\\n"'
+final_result='select(.type == "result").result // empty'
+
+tmpfile=$(mktemp)
+trap "rm -f $tmpfile" EXIT
+
+echo "$FULL_PROMPT" | claude -p \
+  --dangerously-skip-permissions \
+  --output-format stream-json \
+  --verbose \
+| grep --line-buffered '^{' \
+| tee "$tmpfile" \
+| jq --unbuffered -rj "$stream_text"
+
+RESULT=$(jq -r "$final_result" "$tmpfile")
+
+PR_TITLE=$(echo "$RESULT" | grep -oP '(?<=<pr_title>).*?(?=</pr_title>)' || echo "$RESULT" | sed -n '/<pr_title>/,/<\/pr_title>/p' | sed '1d;$d')
+PR_DESCRIPTION=$(echo "$RESULT" | sed -n '/<pr_description>/,/<\/pr_description>/p' | sed '1d;$d')
+
+if [ -z "$PR_TITLE" ] || [ -z "$PR_DESCRIPTION" ]; then
+  echo "Error: Worker did not output <pr_title> and <pr_description> tags."
+  echo "Raw result:"
+  echo "$RESULT"
+  exit 1
+fi
+
+echo "$PR_TITLE" > /tmp/pr_title.txt
+echo "$PR_DESCRIPTION" > /tmp/pr_description.txt

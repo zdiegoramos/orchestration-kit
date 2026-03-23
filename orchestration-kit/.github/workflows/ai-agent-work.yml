@@ -1,0 +1,105 @@
+name: AI Agent Work
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch_name:
+        description: Branch name for this work
+        required: true
+        type: string
+      target_branch:
+        description: Base branch for this work
+        required: true
+        default: main
+        type: string
+      issue_numbers:
+        description: JSON array of issue numbers to work on
+        required: true
+        type: string
+      prompt:
+        description: Task prompt for worker
+        required: true
+        type: string
+
+jobs:
+  ai-agent-work:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: read
+
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_branch }}
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install repo dependencies (if Node project)
+        run: |
+          if [ -f package-lock.json ]; then
+            bun ci
+          elif [ -f package.json ]; then
+            bun install
+          else
+            echo "No package.json found; skipping dependency install."
+          fi
+
+      - name: Install Claude Code
+        run: bun add -g @anthropic-ai/claude-code
+
+      - name: Run worker
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_READ_TOKEN }}
+          BRANCH_NAME: ${{ inputs.branch_name }}
+          ISSUE_NUMBERS: ${{ inputs.issue_numbers }}
+          TASK_PROMPT: ${{ inputs.prompt }}
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+        run: bash scripts/worker-run.sh "$BRANCH_NAME" "$ISSUE_NUMBERS" "$TASK_PROMPT"
+
+      - name: Push branch
+        id: push_branch
+        env:
+          BRANCH_NAME: ${{ inputs.branch_name }}
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+          TASK_PROMPT: ${{ inputs.prompt }}
+        run: |
+          git config user.name "ai-agent[bot]"
+          git config user.email "ai-agent[bot]@users.noreply.github.com"
+          if ! git diff --quiet HEAD "origin/$TARGET_BRANCH" 2>/dev/null; then
+            git push origin "$BRANCH_NAME"
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            git add -A
+            if ! git diff --cached --quiet; then
+              git commit -m "AI: ${TASK_PROMPT}"
+              git push origin "$BRANCH_NAME"
+              echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "No changes to push"
+              echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Open PR
+        if: ${{ steps.push_branch.outputs.has_changes == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH_NAME: ${{ inputs.branch_name }}
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+        run: |
+          PR_TITLE=$(cat /tmp/pr_title.txt)
+          PR_DESCRIPTION=$(cat /tmp/pr_description.txt)
+          PR_TITLE="${PR_TITLE:0:256}"
+          gh pr create \
+            --base "$TARGET_BRANCH" \
+            --head "$BRANCH_NAME" \
+            --title "$PR_TITLE" \
+            --body "$PR_DESCRIPTION"

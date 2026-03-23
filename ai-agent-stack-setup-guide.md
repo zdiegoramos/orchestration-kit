@@ -29,7 +29,7 @@ These steps cannot be delegated safely to AI.
 2. Install local tools:
 - Git
 - Node.js LTS (22.x recommended)
-- pnpm
+- bun
 - GitHub CLI
 - VS Code
 
@@ -73,7 +73,7 @@ Create a production-ready baseline in this folder using:
 - Effect.ts base module for workflow orchestration
 
 Requirements:
-1) Use pnpm.
+1) Use bun.
 2) Create scripts for dev, build, test, typecheck, lint, format, db:generate, db:migrate.
 3) Add a clean folder architecture:
    - src/app
