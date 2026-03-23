@@ -1,42 +1,39 @@
 # AI Orchestration Kit
 
-This kit is the reusable process layer for AI-first software delivery.
+This kit is opinionated for one workflow only: PRD-first, interview-driven planning, then sandboxed autonomous execution.
 
-It is intentionally app-agnostic: you bring product context and architecture decisions, AI executes the implementation work.
+## Canonical flow
 
-## Outcome and pass criteria
+Use this exact sequence:
 
-After this guide, a developer can:
-
-1. Install orchestration once with near-zero hand wiring.
-2. Dispatch AI work safely and repeatedly.
-3. Review/merge AI PRs with clear traceability.
-4. Understand why each step exists, not just what to run.
-
-## Process map
+1. User starts Claude in terminal.
+2. User runs `/grill-me` with initial intent.
+3. AI asks clarifying and design questions until the scope is clear.
+4. User runs `/write-a-prd` to create the parent PRD issue.
+5. User runs `/prd-to-plan` to produce a phased vertical-slice plan.
+6. User runs `/prd-to-issues` to generate implementation issues from the PRD.
+7. User runs the Ralph loop in the sandbox to execute one task per iteration.
+8. User asks AI to create a QA issue on GitHub for verification/review.
+9. Repeat from step 2 or 4 as new intent arrives.
 
 ```mermaid
 flowchart TD
-	A[Install local dependencies] --> B[Install kit into target repo]
-	B --> C[Create GitHub secrets]
-	C --> D[Run preflight checks]
-	D --> E[Create AFK or HITL issues]
-	E --> F[Dispatch parallel AI workers]
-	E --> G[Run local RALPH loop]
-	F --> H[AI opens PRs]
-	G --> H
-	H --> I[Human reviews and merges]
-	I --> J[Re-dispatch next batch]
+  A[Start Claude] --> B[/grill-me with intent]
+  B --> C[AI interviews until clear]
+  C --> D[/write-a-prd]
+  D --> E[/prd-to-plan]
+  E --> F[/prd-to-issues]
+  F --> G[Run sandboxed Ralph loop]
+  G --> H[Create QA issue]
+  H --> I[Repeat]
 ```
 
-## Installations first
+## One-time setup
 
-Do this once per machine.
-
-1. Install GitHub CLI and authenticate.
+1. Install GitHub CLI and authenticate (`gh auth login`).
 2. Install Claude Code CLI.
 3. Install `jq`.
-4. Confirm Docker Desktop is installed and running.
+4. Install Docker Desktop and ensure it is running.
 
 Quick check:
 
@@ -44,171 +41,97 @@ Quick check:
 gh --version && claude --version && jq --version && docker --version
 ```
 
-Reasoning: these tools are the minimum runtime dependencies for all orchestration modes.
-
-## Step-by-step onboarding
-
-### 1) Install the kit into a target repository
-
-From this repository root:
+Install into a target repository:
 
 ```bash
 bash orchestration-kit/scripts/install-into-target.sh /absolute/path/to/target-repo
 ```
 
-Reasoning: this single command copies workflows, scripts, issue templates, planning files, and Claude starter config so you avoid manual file-by-file setup.
-
-### 2) Configure GitHub secrets in the target repository
-
-`install-into-target.sh` creates `.env` and `.env.example` in the target repository (or prepends missing required vars if the files already exist).
-
-Fill the token values in `.env` before running the setup script:
-
-```bash
-cd /absolute/path/to/target-repo
-# edit .env and set real values for:
-# CLAUDE_CODE_OAUTH_TOKEN=
-# GH_READ_TOKEN=
-```
-
-Then run:
-
-```bash
-bash scripts/setup-github-secrets.sh
-```
-
-Required secrets:
-
-1. `CLAUDE_CODE_OAUTH_TOKEN`
-2. `GH_READ_TOKEN`
-
-Important: keep `.env` local and never commit real tokens.
-
-Reasoning: workers run on GitHub Actions and need auth to Claude + issue context.
-
-### 3) Run preflight checks
+Then in the target repo:
 
 ```bash
 bash scripts/preflight-check.sh
+bash scripts/sandbox-setup.sh
 ```
 
-Reasoning: fail fast on missing dependencies, workflow file, auth, or secrets before dispatching work.
+## Daily operating loop
 
-### 4) Feed issues in the correct contract
+From the target repository root:
 
-Use `.github/ISSUE_TEMPLATE/ai-afk-task.yml` in the target repo.
+1. Do discovery in Claude:
 
-Required structure:
+```text
+/grill-me <your intent>
+```
 
-1. `Type`: AFK or HITL
-2. `Goal`
-3. `Acceptance Criteria`
-4. Optional `Blocked by`
-5. `Notes`
+2. Generate and align on PRD:
 
-Reasoning: deterministic issue shape enables reliable orchestration and dependency handling.
+```text
+/write-a-prd
+```
 
-### 5) Run orchestration
+3. Generate implementation plan:
 
-Parallel GitHub Actions mode:
+```text
+/prd-to-plan
+```
+
+4. Generate implementation issues:
+
+```text
+/prd-to-issues
+```
+
+5. Execute in sandbox:
 
 ```bash
-bash scripts/dispatch.sh
-gh run list --workflow=ai-agent-work.yml
+bash scripts/sandbox-loop.sh 10
 ```
 
-Planning-driven local loop mode:
+6. Create QA issue after output is ready:
 
 ```bash
-bash scripts/ralph-loop.sh 10
+gh issue create \
+  --title "QA: <feature name>" \
+  --body "Verify behavior, test edge cases, and report gaps for PRD #<number>."
 ```
 
-Single local iteration:
+## Parallel PRDs (optional)
+
+The kit supports running multiple PRDs at the same time by isolating each PRD into a track.
+
+1. Create a track:
 
 ```bash
-bash scripts/ralph-once.sh
+bash scripts/start-prd-track.sh <track-slug> <parent-prd-issue-number>
 ```
 
-Reasoning: dispatch mode maximizes throughput across independent issues; RALPH mode maximizes focused execution from planning artifacts.
+2. Keep each terminal pinned to one track and one PRD.
+3. For issue execution, scope sandbox loop to that PRD:
 
-### 6) Review and merge AI output
+```bash
+RALPH_PARENT_PRD=<parent-prd-issue-number> bash scripts/sandbox-loop.sh 10
+```
 
-1. Review PRs opened from `ai/*` branches.
-2. Merge safe PRs.
-3. Re-run dispatch after merges to unlock dependencies.
+4. For plan-driven local loop, point context files at the track:
 
-Reasoning: human effort stays focused on orchestration and architectural quality gates.
+```bash
+RALPH_CONTEXT_FILES='@plans/tracks/<track-slug>/prd.md @plans/tracks/<track-slug>/plan.md @plans/tracks/<track-slug>/progress.txt' bash scripts/ralph-loop.sh 10
+```
 
-## What gets installed
+This avoids cross-talk between concurrent initiatives and keeps each loop deterministic.
 
-Core runtime files:
+## Core scripts in this workflow
 
-1. `.github/workflows/ai-agent-work.yml`
-2. `scripts/dispatch.sh`
-3. `scripts/dispatch-prompt.md`
-4. `scripts/worker-run.sh`
-5. `scripts/worker-prompt.md`
-6. `scripts/setup-github-secrets.sh`
-7. `scripts/preflight-check.sh`
-8. `scripts/ralph-once.sh`
-9. `scripts/ralph-loop.sh`
-10. `scripts/ralph-prompt.md`
-
-Scaffolding that reduces manual labor:
-
-1. `.github/ISSUE_TEMPLATE/ai-afk-task.yml`
-2. `.claude/settings.json`
-3. `.claude/hooks/block-destructive-git.sh`
-4. `.gitignore`
-5. `plans/prd.md`
-6. `plans/tasks.md`
-7. `progress.txt`
-
-Mandatory safety module:
-
-1. `sandcastle/*`
+1. `scripts/preflight-check.sh`
 2. `scripts/sandbox-setup.sh`
 3. `scripts/sandbox-once.sh`
 4. `scripts/sandbox-loop.sh`
 5. `scripts/sandbox-cleanup.sh`
-
-## Claude starter configuration
-
-The starter `.claude/settings.json` installs a pre-tool hook that blocks destructive git commands (`reset --hard`, `checkout --`, `clean -fdx`) from agent shell calls.
-
-Reasoning: this preserves safety while keeping autonomous edit velocity high.
-
-## Dispatcher and loop configuration
-
-Dispatcher overrides:
-
-1. `WORKFLOW_FILE` (default: `ai-agent-work.yml`)
-2. `TARGET_BRANCH` (default: `main`)
-3. `BRANCH_PREFIX` (default: `ai`)
-4. `ORCHESTRATOR_MODEL` (default: `sonnet`)
-
-RALPH overrides:
-
-1. `RALPH_CONTEXT_FILES` (default: `@plans/prd.md @progress.txt`)
-2. `RALPH_MODEL` (optional)
-3. `RALPH_NOTIFY_CMD` (optional)
-
-Example:
-
-```bash
-RALPH_CONTEXT_FILES='@plans/prd.md @plans/tasks.md @progress.txt @docs/ai-guidelines.md @.claude/skills/my-skill/SKILL.md' bash scripts/ralph-loop.sh 10
-```
-
-## Migration note for this repository
-
-This repository still has legacy root workflow/scripts (`claude-work.yml` naming). The orchestration kit standardizes on:
-
-1. Workflow: `ai-agent-work.yml`
-2. Worker commits: `AI:` prefix
-3. Configurable target branch and branch prefix
-
-Use the kit naming as the canonical process for new repositories.
+6. `scripts/ralph-once.sh`
+7. `scripts/ralph-loop.sh`
+8. `scripts/start-prd-track.sh`
 
 ## Deep dive
 
-See `ai-guide.md` for architecture-level explanation and operating model.
+See `ai-guide.md` for design rationale and operating guardrails.

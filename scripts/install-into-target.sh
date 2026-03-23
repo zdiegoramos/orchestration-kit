@@ -92,20 +92,22 @@ EOF
 ensure_env_vars_file "$TARGET_REPO/.env"
 ensure_env_vars_file "$TARGET_REPO/.env.example"
 
-copy_file "$KIT_ROOT/.github/workflows/ai-agent-work.yml" "$TARGET_REPO/.github/workflows/ai-agent-work.yml"
-
 for src in "$KIT_ROOT"/scripts/*.sh "$KIT_ROOT"/scripts/*.md; do
   [ -f "$src" ] || continue
   file_name="$(basename "$src")"
   if [ "$file_name" = "install-into-target.sh" ]; then
     continue
   fi
+  case "$file_name" in
+    dispatch.sh|dispatch-prompt.md|worker-run.sh|worker-prompt.md)
+      continue
+      ;;
+  esac
   copy_file "$src" "$TARGET_REPO/scripts/$file_name"
 done
 
 copy_file "$KIT_ROOT/templates/.claude/settings.json" "$TARGET_REPO/.claude/settings.json"
 copy_file "$KIT_ROOT/templates/.claude/hooks/block-destructive-git.sh" "$TARGET_REPO/.claude/hooks/block-destructive-git.sh"
-copy_file "$KIT_ROOT/templates/.github/ISSUE_TEMPLATE/ai-afk-task.yml" "$TARGET_REPO/.github/ISSUE_TEMPLATE/ai-afk-task.yml"
 copy_file "$KIT_ROOT/templates/.gitignore" "$TARGET_REPO/.gitignore"
 copy_file "$KIT_ROOT/templates/plans/prd.md" "$TARGET_REPO/plans/prd.md"
 copy_file "$KIT_ROOT/templates/plans/tasks.md" "$TARGET_REPO/plans/tasks.md"
@@ -126,4 +128,6 @@ echo "  2. Add token values in .env (CLAUDE_CODE_OAUTH_TOKEN, GH_READ_TOKEN)"
 echo "  3. gh auth login"
 echo "  4. bash scripts/setup-github-secrets.sh"
 echo "  5. bash scripts/preflight-check.sh"
-echo "  6. bash scripts/dispatch.sh"
+echo "  6. In Claude: /grill-me -> /write-a-prd -> /prd-to-plan -> /prd-to-issues"
+echo "  7. bash scripts/sandbox-setup.sh"
+echo "  8. bash scripts/sandbox-loop.sh 10"

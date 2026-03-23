@@ -5,10 +5,10 @@ set -eo pipefail
 #
 # Environment variables:
 #   RALPH_CONTEXT_FILES: Space-separated @file references passed to Claude
-#                        default: "@plans/prd.md @progress.txt"
+#                        default: "@plans/prd.md @plans/tasks.md @progress.txt"
 #   RALPH_MODEL: Claude model alias (optional)
 
-RALPH_CONTEXT_FILES=${RALPH_CONTEXT_FILES:-"@plans/prd.md @progress.txt"}
+RALPH_CONTEXT_FILES=${RALPH_CONTEXT_FILES:-"@plans/prd.md @plans/tasks.md @progress.txt"}
 RALPH_MODEL=${RALPH_MODEL:-}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

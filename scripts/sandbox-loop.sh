@@ -17,12 +17,21 @@ final_result='select(.type == "result").result // empty'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROMPT_FILE="$SCRIPT_DIR/../sandcastle/prompt.md"
+RALPH_PARENT_PRD=${RALPH_PARENT_PRD:-}
 
 for ((i=1; i<=$1; i++)); do
   tmpfile=$(mktemp)
   trap "rm -f $tmpfile" EXIT
 
-  issues=$(gh issue list --state open --json number,title,body,comments)
+  issues=$(gh issue list --state open --json number,title,body,comments --limit 200)
+  if [ -n "$RALPH_PARENT_PRD" ]; then
+    issues=$(echo "$issues" | jq --arg prd "#$RALPH_PARENT_PRD" '[.[] | select((.body // "") | test($prd))]')
+    count=$(echo "$issues" | jq 'length')
+    if [ "$count" -eq 0 ]; then
+      echo "No open issues found for parent PRD #$RALPH_PARENT_PRD."
+      exit 1
+    fi
+  fi
   ralph_commits=$(git log --grep="RALPH" -n 10 --format="%H%n%ad%n%B---" --date=short 2>/dev/null || echo "No RALPH commits found")
 
   docker sandbox run claude . -- \

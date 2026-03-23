@@ -7,7 +7,7 @@ set -eo pipefail
 #
 # Environment variables:
 #   RALPH_CONTEXT_FILES: Space-separated @file references passed to Claude
-#                        default: "@plans/prd.md @progress.txt"
+#                        default: "@plans/prd.md @plans/tasks.md @progress.txt"
 #   RALPH_MODEL: Claude model alias (optional)
 #   RALPH_NOTIFY_CMD: shell command with %s placeholder for message (optional)
 #                     example: RALPH_NOTIFY_CMD='echo "%s"'
@@ -18,7 +18,7 @@ if [ -z "$1" ]; then
 fi
 
 ITERATIONS="$1"
-RALPH_CONTEXT_FILES=${RALPH_CONTEXT_FILES:-"@plans/prd.md @progress.txt"}
+RALPH_CONTEXT_FILES=${RALPH_CONTEXT_FILES:-"@plans/prd.md @plans/tasks.md @progress.txt"}
 RALPH_MODEL=${RALPH_MODEL:-}
 RALPH_NOTIFY_CMD=${RALPH_NOTIFY_CMD:-}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

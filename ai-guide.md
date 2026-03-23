@@ -1,85 +1,76 @@
 # AI Guide: Why This Process Works
 
-Use `README.md` as the canonical setup and runbook.
+Use `README.md` as the runbook. This document explains why the PRD-first loop is the only recommended operating model for this kit.
 
-This guide explains the architecture and reasoning behind that process so teams can adapt it intentionally.
+## Core model
 
-## Core operating model
+The workflow has three explicit phases:
 
-The orchestration kit splits work into three planes:
+1. Discovery phase: `/grill-me` converges on intent and constraints.
+2. Design phase: `/write-a-prd`, `/prd-to-plan`, and `/prd-to-issues` convert intent into executable slices.
+3. Execution phase: sandboxed Ralph loops implement one issue at a time with commit traceability.
 
-1. Planning plane: humans define goals, acceptance criteria, and constraints.
-2. Execution plane: AI workers implement and validate scoped tasks.
-3. Control plane: scripts/workflow prevent duplicated work and maintain flow.
+This keeps architecture decisions human-guided, while implementation remains autonomous and iterative.
 
-This split keeps humans in high-leverage activities (idea generation, orchestration, architecture) while AI handles repetitive implementation labor.
+## Why interview first
 
-## Why two execution modes exist
+Starting with `/grill-me` reduces ambiguity before writing artifacts. When ambiguity is resolved up front:
 
-1. Dispatcher/worker mode is issue-driven and parallelized on GitHub Actions.
-2. RALPH mode is planning-driven and iterative on local runtime.
+1. PRDs are smaller and more stable.
+2. Plans have fewer late structural changes.
+3. Implementation issues are less likely to overlap or conflict.
 
-Use dispatcher mode when independent tasks can run concurrently.
-Use RALPH mode when sequencing and evolving plans matter more than throughput.
+## Why PRD -> plan -> issues
 
-## Why issue shape is strict
+This sequence enforces a strict decomposition order:
 
-The AFK/HITL + acceptance criteria + blockers contract exists to make task selection deterministic:
+1. PRD defines user outcomes and boundaries.
+2. Plan defines phased tracer-bullet slices.
+3. Issues define independently executable tasks.
 
-1. AFK/HITL decides autonomy level.
-2. Acceptance criteria define completion boundaries.
-3. Blockers allow dependency-aware scheduling.
+Skipping this order usually causes vague tasks, hidden dependencies, and loop thrash.
 
-Without this contract, dispatch quality drops and manual triage increases.
+## Why sandboxed Ralph loops
 
-## Why preflight exists
+The sandbox loop is the execution engine because it balances autonomy and safety:
 
-Preflight checks catch setup drift before any run starts:
+1. Agent has high edit capability in an isolated runtime.
+2. Real repository history still captures every commit.
+3. One-task-per-iteration behavior keeps review and rollback practical.
 
-1. Missing binaries (`gh`, `jq`, `claude`, `git`)
-2. Missing auth/session (`gh auth`)
-3. Missing workflow file
-4. Missing repository secrets
+## Why QA issues are part of the loop
 
-This avoids expensive failed workflow runs and reduces operator interruption.
+A dedicated QA issue after implementation creates a feedback checkpoint between build and trust:
 
-## Why Claude starter config is included
+1. Verification work is explicit and trackable.
+2. Regressions are logged as new scoped work, not hidden in chat.
+3. The next iteration starts from concrete failures, not assumptions.
 
-The starter `.claude/settings.json` adds a safety hook that blocks destructive git operations from shell tool usage.
+## Parallel PRDs without chaos
 
-This guardrail is intentionally minimal:
+Multiple PRDs can run concurrently when each has a separate track and a scoped execution loop.
 
-1. It reduces catastrophic repo damage risk.
-2. It does not slow normal implementation flow.
-3. It keeps autonomy high while preserving reviewability.
+Rules:
 
-## Why planning templates are installed
+1. One parent PRD issue per track.
+2. One terminal per active track.
+3. Scope sandbox issue selection by parent PRD (`RALPH_PARENT_PRD`).
+4. Scope local planning context by track files (`RALPH_CONTEXT_FILES`).
 
-The default `plans/prd.md`, `plans/tasks.md`, and `progress.txt` reduce blank-page overhead and make RALPH loops immediately usable.
+If these boundaries are not enforced, tasks leak across initiatives and velocity drops.
 
-Templates are scaffolding, not policy. Teams should customize once and keep the structure stable.
+## Guardrails
 
-## Recommended governance controls
+Keep these controls in place:
 
-1. Branch protection on the default branch.
-2. Required PR review before merge.
-3. Required CI checks for changed code.
-4. Small AFK tasks to reduce merge conflicts.
-5. Explicit completion criteria to make `<promise>COMPLETE</promise>` meaningful.
+1. Branch protection and required review.
+2. Required CI for merged branches.
+3. Small vertical slices with explicit acceptance criteria.
+4. Preflight before runs to catch environment drift.
 
-## Process anti-patterns
+## Anti-patterns this kit avoids
 
-1. Large, vague issues sent as AFK.
-2. Mixing architecture decisions into implementation tasks.
-3. Running loops without review gates.
-4. Treating AI output as unreviewed truth.
-
-## Adapting to your repo
-
-Tune only what changes behavior safely:
-
-1. Prompt contracts in `scripts/dispatch-prompt.md`, `scripts/worker-prompt.md`, and `scripts/ralph-prompt.md`
-2. Runtime env overrides (`WORKFLOW_FILE`, `TARGET_BRANCH`, `BRANCH_PREFIX`, `ORCHESTRATOR_MODEL`, `RALPH_CONTEXT_FILES`, `RALPH_MODEL`, `RALPH_NOTIFY_CMD`)
-3. Custom skills in `.claude/skills/...` included through loop context files
-
-Keep the orchestration interfaces stable to preserve portability across repositories.
+1. Issue-first coding without discovery.
+2. Massive PRDs with no phased plan.
+3. Unscoped autonomous loops across unrelated work.
+4. Treating implementation output as complete without QA feedback.
