@@ -20,9 +20,9 @@ Use this exact sequence:
 flowchart TD
   A[Start Claude] --> B["/grill-me with intent"]
   B --> C[AI interviews until clear]
-  C --> D[/write-a-prd]
-  D --> E[/prd-to-plan]
-  E --> F[/prd-to-issues]
+  C --> D["/write-a-prd"]
+  D --> E["/prd-to-plan"]
+  E --> F["/prd-to-issues"]
   F --> G[Run sandboxed Ralph loop]
   G --> H[Create QA issue]
   H --> I[Repeat]
