@@ -2,7 +2,8 @@
 set -eo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/sandbox-common.sh"
 
-DOCKER_USER=$(get_docker_user)
+require_docker_daemon
+DOCKER_USER=$(get_docker_user || true)
 IMAGE="${DOCKER_USER:+$DOCKER_USER/}claude-sandcastle:v1"
 
 echo "Sandbox: $SANDBOX_NAME"

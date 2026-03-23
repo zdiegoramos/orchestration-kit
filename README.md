@@ -18,7 +18,7 @@ Use this exact sequence:
 
 ```mermaid
 flowchart TD
-  A[Start Claude] --> B[/grill-me with intent]
+  A[Start Claude] --> B["/grill-me with intent"]
   B --> C[AI interviews until clear]
   C --> D[/write-a-prd]
   D --> E[/prd-to-plan]
