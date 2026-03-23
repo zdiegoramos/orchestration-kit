@@ -60,8 +60,20 @@ Reasoning: this single command copies workflows, scripts, issue templates, plann
 
 ### 2) Configure GitHub secrets in the target repository
 
+`install-into-target.sh` creates `.env` and `.env.example` in the target repository (or prepends missing required vars if the files already exist).
+
+Fill the token values in `.env` before running the setup script:
+
 ```bash
 cd /absolute/path/to/target-repo
+# edit .env and set real values for:
+# CLAUDE_CODE_OAUTH_TOKEN=
+# GH_READ_TOKEN=
+```
+
+Then run:
+
+```bash
 bash scripts/setup-github-secrets.sh
 ```
 
@@ -69,6 +81,8 @@ Required secrets:
 
 1. `CLAUDE_CODE_OAUTH_TOKEN`
 2. `GH_READ_TOKEN`
+
+Important: keep `.env` local and never commit real tokens.
 
 Reasoning: workers run on GitHub Actions and need auth to Claude + issue context.
 

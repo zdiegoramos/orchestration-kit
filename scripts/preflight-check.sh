@@ -68,7 +68,7 @@ if ! gh secret list --repo "$REPO" | grep -q '^GH_READ_TOKEN'; then
 fi
 
 if [ "$MISSING_SECRETS" -eq 1 ]; then
-  echo "Run: bash scripts/setup-github-secrets.sh"
+  echo "Add CLAUDE_CODE_OAUTH_TOKEN and GH_READ_TOKEN to .env at repo root, then run: bash scripts/setup-github-secrets.sh"
   exit 1
 fi
 

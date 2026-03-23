@@ -49,6 +49,49 @@ copy_file() {
 
 echo "Installing orchestration kit into: $TARGET_REPO"
 
+ensure_env_vars_file() {
+  local file_path="$1"
+  local missing_keys=()
+
+  if [ ! -f "$file_path" ]; then
+    cat > "$file_path" <<'EOF'
+CLAUDE_CODE_OAUTH_TOKEN=
+GH_READ_TOKEN=
+
+EOF
+    echo "create $file_path"
+    return
+  fi
+
+  if ! grep -Eq '^[[:space:]]*CLAUDE_CODE_OAUTH_TOKEN=' "$file_path"; then
+    missing_keys+=("CLAUDE_CODE_OAUTH_TOKEN")
+  fi
+  if ! grep -Eq '^[[:space:]]*GH_READ_TOKEN=' "$file_path"; then
+    missing_keys+=("GH_READ_TOKEN")
+  fi
+
+  if [ "${#missing_keys[@]}" -eq 0 ]; then
+    return
+  fi
+
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  {
+    for key in "${missing_keys[@]}"; do
+      printf '%s=\n' "$key"
+    done
+    printf '\n'
+    cat "$file_path"
+  } > "$tmp_file"
+
+  mv "$tmp_file" "$file_path"
+  echo "update $file_path (prepended: ${missing_keys[*]})"
+}
+
+ensure_env_vars_file "$TARGET_REPO/.env"
+ensure_env_vars_file "$TARGET_REPO/.env.example"
+
 copy_file "$KIT_ROOT/.github/workflows/ai-agent-work.yml" "$TARGET_REPO/.github/workflows/ai-agent-work.yml"
 
 for src in "$KIT_ROOT"/scripts/*.sh "$KIT_ROOT"/scripts/*.md; do
@@ -78,7 +121,8 @@ echo ""
 echo "Install complete."
 echo "Next steps:"
 echo "  1. cd $TARGET_REPO"
-echo "  2. gh auth login"
-echo "  3. bash scripts/setup-github-secrets.sh"
-echo "  4. bash scripts/preflight-check.sh"
-echo "  5. bash scripts/dispatch.sh"
+echo "  2. Add token values in .env (CLAUDE_CODE_OAUTH_TOKEN, GH_READ_TOKEN)"
+echo "  3. gh auth login"
+echo "  4. bash scripts/setup-github-secrets.sh"
+echo "  5. bash scripts/preflight-check.sh"
+echo "  6. bash scripts/dispatch.sh"
