@@ -2,30 +2,56 @@
 
 This kit is opinionated for one workflow only: PRD-first, interview-driven planning, then sandboxed autonomous execution.
 
-## Canonical flow
+## Quick start — Session workflow
 
-Use this exact sequence:
+The `ok` CLI wraps the entire flow into sessions. One command to go from idea to executing code:
 
-1. User starts Claude in terminal.
-2. User runs `/grill-me` with initial intent.
-3. AI asks clarifying and design questions until the scope is clear.
-4. User runs `/write-a-prd` to create the parent PRD issue.
-5. User runs `/prd-to-plan` to produce a phased vertical-slice plan.
-6. User runs `/prd-to-issues` to generate implementation issues from the PRD.
-7. User runs the Ralph loop in the sandbox to execute one task per iteration.
-8. User asks AI to create a QA issue on GitHub for verification/review.
-9. Repeat from step 2 or 4 as new intent arrives.
+```bash
+ok create my-feature          # Create isolated session (branch + worktree)
+ok start my-feature           # Interview → PRD → plan → issues → ralph loop
+ok dashboard                  # Live pm2-style dashboard of all sessions
+ok qa my-feature              # Stop execution, review diff
+ok approve my-feature         # Create PR for merge
+ok destroy my-feature         # Clean up
+```
 
 ```mermaid
 flowchart TD
-  A[Start Claude] --> B["/grill-me with intent"]
+  A["ok create"] --> B["ok start (interview)"]
   B --> C[AI interviews until clear]
-  C --> D["/write-a-prd"]
-  D --> E["/prd-to-plan"]
-  E --> F["/prd-to-issues"]
-  F --> G[Run sandboxed Ralph loop]
-  G --> H[Create QA issue]
-  H --> I[Repeat]
+  C --> D[Auto: PRD + plan + issues]
+  D --> E[Auto: sandboxed ralph loop]
+  E --> F["ok dashboard (monitor)"]
+  F --> G["ok qa (review diff)"]
+  G -->|satisfied| H["ok approve (create PR)"]
+  G -->|needs work| E
+  H --> I["ok destroy (cleanup)"]
+```
+
+### Session lifecycle
+
+| Command | What happens |
+|---------|-------------|
+| `ok create <name>` | Creates git branch `session/<name>`, worktree in `.ok/worktrees/<name>`, copies plan templates |
+| `ok start <name> [N]` | Runs discovery interview via Claude, auto-generates PRD/plan/issues, starts ralph loop (N iterations, default 20) |
+| `ok list` | Shows pm2-style table of all sessions with status, iterations, uptime |
+| `ok dashboard` | Auto-refreshing live dashboard (press q to quit) |
+| `ok logs <name> [-f]` | View or tail ralph execution logs |
+| `ok stop <name>` | Stop the ralph loop |
+| `ok qa <name>` | Stop execution, show diff summary vs base branch |
+| `ok approve <name>` | Push branch, create PR for review/merge |
+| `ok destroy <name>` | Remove worktree, branch, and session state |
+
+### Parallel sessions
+
+Each session is fully isolated via git worktrees — multiple sessions run simultaneously without interference:
+
+```bash
+ok create auth-login
+ok start auth-login &
+ok create api-cache
+ok start api-cache &
+ok dashboard                  # See both sessions running
 ```
 
 ## One-time setup
@@ -56,7 +82,20 @@ bash scripts/sandbox-setup.sh
 
 ## Daily operating loop
 
-From the target repository root:
+### Using sessions (recommended)
+
+```bash
+ok create my-feature
+ok start my-feature 15      # 15 ralph iterations max
+# Answer interview questions, then execution starts automatically
+ok dashboard                 # Monitor in another terminal
+ok qa my-feature             # When complete, review
+ok approve my-feature        # Create PR
+```
+
+### Manual flow (advanced)
+
+If you prefer the step-by-step workflow:
 
 1. Do discovery in Claude:
 
@@ -96,9 +135,10 @@ gh issue create \
   --body "Verify behavior, test edge cases, and report gaps for PRD #<number>."
 ```
 
-## Parallel PRDs (optional)
+## Parallel PRDs (optional — manual flow)
 
-The kit supports running multiple PRDs at the same time by isolating each PRD into a track.
+The session workflow handles parallelism automatically via worktrees.
+For the manual flow, the kit supports running multiple PRDs by isolating each into a track.
 
 1. Create a track:
 
@@ -123,6 +163,11 @@ This avoids cross-talk between concurrent initiatives and keeps each loop determ
 
 ## Core scripts in this workflow
 
+### Session CLI (`ok`)
+- `ok` — main entry point (see `ok help`)
+- `scripts/ok/` — session management scripts
+
+### Manual scripts
 1. `scripts/preflight-check.sh`
 2. `scripts/sandbox-setup.sh`
 3. `scripts/sandbox-once.sh`

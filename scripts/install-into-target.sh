@@ -137,7 +137,13 @@ mkdir -p "$TARGET_REPO/sandcastle"
 cp -R "$KIT_ROOT/sandcastle/." "$TARGET_REPO/sandcastle/"
 echo "copy  $TARGET_REPO/sandcastle/*"
 
+# Session management CLI
+copy_file "$KIT_ROOT/ok" "$TARGET_REPO/ok"
+copy_dir_contents "$KIT_ROOT/scripts/ok" "$TARGET_REPO/scripts/ok"
+
+chmod +x "$TARGET_REPO/ok" || true
 chmod +x "$TARGET_REPO/scripts"/*.sh || true
+chmod +x "$TARGET_REPO/scripts/ok"/*.sh || true
 chmod +x "$TARGET_REPO/.claude/hooks"/*.sh || true
 
 echo ""
